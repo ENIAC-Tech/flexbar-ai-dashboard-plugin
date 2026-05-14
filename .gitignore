@@ -1,0 +1,7 @@
+node_modules
+logs
+.vscode
+.env
+package-lock.json
+com.aspen.flexbar-ai-dashboard.plugin/backend
+com.aspen.flexbar-ai-dashboard.plugin/config.json

@@ -1,0 +1,174 @@
+{
+    "name": "flexbar-ai-dashboard",
+    "uuid": "com.aspen.flexbar-ai-dashboard",
+    "version": "1.0.0",
+    "author": "Aspen",
+    "entry": "backend/plugin.cjs",
+    "description": "",
+    "repo": "",
+    "sdk": {
+        "version": "1.0.7"
+    },
+    "software": {
+        "minimumVersion": "1.3.0"
+    },
+    "os": [
+        {
+            "platform": "mac",
+            "minimumVersion": "10.15"
+        },
+        {
+            "platform": "windows",
+            "minimumVersion": "10"
+        }
+    ],
+    "device": [
+        {
+            "name": "flexbar",
+            "version": "1.0.0"
+        }
+    ],
+    "configPage": "global_config",
+    "keyLibrary": {
+        "title": "$PluginName",
+        "style": {
+            "icon": "mdi mdi-puzzle"
+        },
+        "children": [
+          {
+              "title": "$Session.Title",
+              "tip": "$Session.Tip",
+              "cid": "com.aspen.flexbar-ai-dashboard.session",
+              "config": {
+                  "keyType": "default",
+                  "clickable": true,
+                  "platform": [
+                      "windows",
+                      "mac"
+                  ]
+              },
+              "style": {
+                  "icon": "mdi mdi-robot",
+                  "width": 520
+              },
+              "data": {
+                  "dataSource": "codex",
+                  "sessionTitleMode": "initial"
+              }
+          },
+          {
+              "title": "$TokenUsage.Title",
+              "tip": "$TokenUsage.Tip",
+              "cid": "com.aspen.flexbar-ai-dashboard.token-usage",
+              "config": {
+                  "keyType": "default",
+                  "clickable": true,
+                  "platform": [
+                      "windows",
+                      "mac"
+                  ]
+              },
+              "style": {
+                  "icon": "mdi mdi-counter",
+                  "width": 240
+              },
+              "data": {
+                  "dataSource": "codex",
+                  "tokenDisplayMode": "summary"
+              }
+          },
+          {
+              "title": "$PlanUsage.Title",
+              "tip": "$PlanUsage.Tip",
+              "cid": "com.aspen.flexbar-ai-dashboard.plan-usage",
+              "config": {
+                  "keyType": "default",
+                  "clickable": true,
+                  "platform": [
+                      "windows",
+                      "mac"
+                  ]
+              },
+              "style": {
+                  "icon": "mdi mdi-chart-bar",
+                  "width": 280
+              },
+              "data": {
+                  "dataSource": "codex"
+              }
+          },
+          {
+              "title": "$Skill.Title",
+              "tip": "$Skill.Tip",
+              "cid": "com.aspen.flexbar-ai-dashboard.skill",
+              "config": {
+                  "keyType": "default",
+                  "clickable": true,
+                  "platform": [
+                      "windows",
+                      "mac"
+                  ]
+              },
+              "style": {
+                  "icon": "mdi mdi-star-four-points",
+                  "width": 240,
+                  "fontSize": 18,
+                  "iconSize": 34,
+                  "iconPos": {
+                      "X": 50,
+                      "Y": 50
+                  },
+                  "titlePos": {
+                      "X": 50,
+                      "Y": 72
+                  },
+                  "showTitle": true
+              },
+              "data": {
+                  "dataSource": "codex",
+                  "skillName": ""
+              }
+          }
+        ]
+    },
+    "local": {
+        "en": {
+            "PluginName": "flexbar-ai-dashboard",
+            "Session": {
+                "Title": "AI Session",
+                "Tip": "Shows one recent Codex or Claude session"
+            },
+            "TokenUsage": {
+                "Title": "Token Usage",
+                "Tip": "Shows observed local token usage"
+            },
+            "PlanUsage": {
+                "Title": "Plan Usage",
+                "Tip": "Shows subscription usage windows"
+            },
+            "Skill": {
+                "Title": "AI Skill",
+                "Tip": "Pastes a selected Codex or Claude Code skill prompt"
+            }
+        },
+        "zh": {
+            "PluginName": "Flexbar AI \u4eea\u8868\u76d8",
+            "Session": {
+                "Title": "AI \u4f1a\u8bdd",
+                "Tip": "\u663e\u793a\u4e00\u4e2a\u6700\u8fd1\u7684 Codex \u6216 Claude \u4f1a\u8bdd"
+            },
+            "TokenUsage": {
+                "Title": "\u4ee4\u724c\u7528\u91cf",
+                "Tip": "\u663e\u793a\u672c\u5730\u89c2\u6d4b\u5230\u7684\u4ee4\u724c\u7528\u91cf"
+            },
+            "PlanUsage": {
+                "Title": "\u5957\u9910\u7528\u91cf",
+                "Tip": "\u663e\u793a\u8ba2\u9605\u7528\u91cf\u7a97\u53e3"
+            },
+            "Skill": {
+                "Title": "AI \u6280\u80fd",
+                "Tip": "\u7c98\u8d34\u9009\u5b9a\u7684 Codex \u6216 Claude Code \u6280\u80fd\u63d0\u793a\u8bcd"
+            }
+        }
+    }
+}
