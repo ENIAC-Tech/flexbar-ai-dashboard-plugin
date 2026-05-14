@@ -621,7 +621,7 @@ async function collectCodexAppServer({ codexHome, timeoutMs = 3_500, includeQuot
     });
 
     send("initialize", {
-      clientInfo: { name: "flexbar-ai-dashboard", version: "0.1.0" },
+      clientInfo: { name: "flexbar-ai-dashboard", version: "1.0.0" },
       capabilities: { experimentalApi: true },
     });
   });

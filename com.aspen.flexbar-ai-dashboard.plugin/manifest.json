@@ -5,7 +5,7 @@
     "author": "Aspen",
     "entry": "backend/plugin.cjs",
     "description": "",
-    "repo": "",
+    "repo": "https://github.com/ENIAC-Tech/flexbar-ai-dashboard-plugin",
     "sdk": {
         "version": "1.0.7"
     },

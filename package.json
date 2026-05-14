@@ -29,5 +29,6 @@
   "dependencies": {
     "@eniac/flexdesigner": "^1.0.7",
     "@napi-rs/canvas": "^0.1.80"
-  }
+  },
+  "version": "1.0.0"
 }
