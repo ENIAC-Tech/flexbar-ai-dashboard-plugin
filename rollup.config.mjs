@@ -4,16 +4,47 @@ import terser from "@rollup/plugin-terser";
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import json from '@rollup/plugin-json';
-import { glob } from 'glob'
+import json from "@rollup/plugin-json";
+
 const isWatching = !!process.env.ROLLUP_WATCH;
 const flexPlugin = "com.aspen.flexbar-ai-dashboard.plugin";
+
+function listUiVueFiles(uiDir) {
+  if (!fs.existsSync(uiDir)) return [];
+  return fs.readdirSync(uiDir)
+    .filter((name) => name.endsWith(".vue"))
+    .map((name) => path.join(uiDir, name));
+}
+
+/** @param {import("rollup").RollupLog} warning */
+function suppressKnownRollupWarnings(warning) {
+  if (warning.code === "CIRCULAR_DEPENDENCY") {
+    const cycle = warning.ids?.join("/") || "";
+    if (
+      cycle.includes("readable-stream/") ||
+      cycle.includes("async/") ||
+      cycle.includes("winston/")
+    ) {
+      return;
+    }
+  }
+
+  if (
+    warning.code === "THIS_IS_UNDEFINED" &&
+    warning.id?.includes("@eniac/flexdesigner/dist/transport.js")
+  ) {
+    return;
+  }
+
+  console.warn(warning.message);
+}
 
 /**
  * @type {import('rollup').RollupOptions}
  */
 const config = {
   input: "src/plugin.js",
+  onwarn: suppressKnownRollupWarnings,
   output: {
     file: `${flexPlugin}/backend/plugin.cjs`,
     format: "cjs",
@@ -28,10 +59,9 @@ const config = {
       name: "watch-externals",
       buildStart: function () {
         this.addWatchFile(`${flexPlugin}/manifest.json`);
-        const vueFiles = glob.sync(`${flexPlugin}/ui/*.vue`);
-        vueFiles.forEach((file) => {
+        for (const file of listUiVueFiles(path.join(flexPlugin, "ui"))) {
           this.addWatchFile(file);
-        });
+        }
       },
     },
     nodeResolve({

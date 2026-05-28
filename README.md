@@ -126,7 +126,9 @@ Clicking **One-click install** on the global config page will:
 - write a recorder script to `~/.flexbar-ai-dashboard/`
 - install a Flexbar-managed statusLine when the user does not already have one
 
-If the user already has a custom statusLine, the plugin does not overwrite it by default. Use the Advanced option to overwrite it.
+If the user already has a custom statusLine, the plugin does not overwrite it by default. Use the **Advanced** section to overwrite it.
+
+The **Path overrides** section supports optional overrides for `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, and `FLEXBAR_AI_CLAUDE_EVENTS`. Click **Apply path overrides** to save them into the plugin `config.json` through FlexDesigner (`$fd.setConfig`) after backend validation. On plugin startup the backend reads `config.json` from the plugin directory before resolving Codex or Claude paths, so overrides survive restarts even before the settings UI opens. Codex home must exist, each Claude config root must exist with a `projects` subdirectory, and the Claude bridge path must be a file (existing or creatable under an existing parent directory). Leave a field blank to keep auto-detection from the current environment. Each field placeholder shows the resolved default path.
 
 Clicking **Uninstall config** removes only hooks and statusLine entries managed by this plugin. It does not delete original Codex or Claude Code session data.
 

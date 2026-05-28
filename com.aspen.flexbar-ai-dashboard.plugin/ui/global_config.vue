@@ -74,6 +74,54 @@
         <v-expansion-panel>
           <v-expansion-panel-title>
             <div class="d-inline-flex align-center ga-2">
+              <v-icon size="18">mdi-folder-cog-outline</v-icon>
+              Path overrides
+            </div>
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <div class="text-caption text-medium-emphasis mb-3">
+              Leave blank to use auto-detected paths from environment variables. Placeholders show the current resolved default.
+            </div>
+
+            <v-text-field
+              v-for="field in pathFields"
+              :key="field.key"
+              :model-value="pathOverrides[field.key]"
+              :label="field.label"
+              :placeholder="field.resolved"
+              :hint="fieldHint(field)"
+              :error="Boolean(pathFieldErrors[field.key])"
+              :error-messages="pathFieldErrors[field.key]"
+              persistent-hint
+              density="compact"
+              variant="outlined"
+              color="orange"
+              hide-details="auto"
+              class="mb-2 path-override-field"
+              @update:model-value="updatePathOverride(field.key, $event)"
+            />
+
+            <div class="d-flex flex-wrap align-center ga-2 mt-1">
+              <v-btn
+                color="orange"
+                variant="flat"
+                :loading="savingPaths"
+                :disabled="!pathOverridesDirty"
+                @click="applyPathOverrides"
+              >
+                <v-icon start>mdi-content-save-outline</v-icon>
+                Apply path overrides
+              </v-btn>
+              <span v-if="pathSaveMessage" class="text-caption text-medium-emphasis">
+                {{ pathSaveMessage }}
+              </span>
+            </div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+
+        <v-expansion-panel>
+          <v-expansion-panel-title>
+            <div class="d-inline-flex align-center ga-2">
               <v-icon size="18">mdi-tune-variant</v-icon>
               Advanced
             </div>
@@ -121,18 +169,69 @@ function setConfigPageClass(enabled) {
   }
 }
 
+const EMPTY_PLUGIN_SETTINGS = {
+  overwriteStatusLine: false,
+  pathOverrides: {},
+};
+
 export default {
+  props: {
+    modelValue: {
+      type: Object,
+      default: () => ({ config: {} }),
+    },
+  },
+  emits: ["update:modelValue"],
   data() {
     return {
       busy: false,
+      savingPaths: false,
       error: "",
-      overwriteStatusLine: false,
       setupResult: null,
       status: {},
       snapshot: null,
+      pathFields: [],
+      pluginSettings: { ...EMPTY_PLUGIN_SETTINGS, pathOverrides: {} },
+      savedPluginSettings: { ...EMPTY_PLUGIN_SETTINGS, pathOverrides: {} },
+      pathValidationErrors: {},
+      pathSaveMessage: "",
+      settingsLoaded: false,
     };
   },
   computed: {
+    pathFieldErrors() {
+      const errors = {};
+      for (const field of this.pathFields) {
+        const message = this.pathValidationErrors[field.key];
+        if (message) errors[field.key] = [message];
+      }
+      return errors;
+    },
+    pathOverrides() {
+      const overrides = isObject(this.pluginSettings.pathOverrides)
+        ? this.pluginSettings.pathOverrides
+        : {};
+      const normalized = {};
+      for (const field of this.pathFields) {
+        normalized[field.key] = typeof overrides[field.key] === "string" ? overrides[field.key] : "";
+      }
+      return normalized;
+    },
+    pathOverridesDirty() {
+      return JSON.stringify(this.pluginSettings) !== JSON.stringify(this.savedPluginSettings);
+    },
+    overwriteStatusLine: {
+      get() {
+        return Boolean(this.pluginSettings.overwriteStatusLine);
+      },
+      set(value) {
+        this.pluginSettings = {
+          ...this.pluginSettings,
+          overwriteStatusLine: Boolean(value),
+        };
+        this.persistPluginSettings();
+      },
+    },
     warnings() {
       return this.setupResult && this.setupResult.warnings ? this.setupResult.warnings : [];
     },
@@ -195,12 +294,129 @@ export default {
     },
   },
   methods: {
+    fieldHint(field) {
+      const error = this.pathValidationErrors[field.key];
+      if (error) return error;
+      return field.description;
+    },
+    applyPluginSettings(config) {
+      const root = isObject(config) ? config : {};
+      const overrides = isObject(root.pathOverrides) ? root.pathOverrides : {};
+      const nextSettings = {
+        overwriteStatusLine: Boolean(root.overwriteStatusLine),
+        pathOverrides: { ...overrides },
+      };
+      this.pluginSettings = { ...nextSettings, pathOverrides: { ...nextSettings.pathOverrides } };
+      this.savedPluginSettings = {
+        overwriteStatusLine: nextSettings.overwriteStatusLine,
+        pathOverrides: { ...nextSettings.pathOverrides },
+      };
+      this.settingsLoaded = true;
+      this.pathValidationErrors = {};
+      this.pathSaveMessage = "";
+    },
+    hasStoredSettings(config) {
+      if (!isObject(config)) return false;
+      if (Object.keys(config.pathOverrides || {}).some((key) => config.pathOverrides[key])) {
+        return true;
+      }
+      return Boolean(config.overwriteStatusLine);
+    },
+    async loadInitialSettings() {
+      const hosted = isObject(this.modelValue && this.modelValue.config)
+        ? this.modelValue.config
+        : null;
+      if (this.hasStoredSettings(hosted)) {
+        this.applyPluginSettings(hosted);
+        return;
+      }
+
+      const remote = await this.$fd.sendToBackend({ type: "getPluginConfig" });
+      this.applyPluginSettings(remote);
+    },
+    buildConfigPayload(settings = this.pluginSettings) {
+      return {
+        overwriteStatusLine: Boolean(settings.overwriteStatusLine),
+        pathOverrides: isObject(settings.pathOverrides)
+          ? { ...settings.pathOverrides }
+          : {},
+      };
+    },
+    async commitPluginConfig(config) {
+      if (typeof this.$fd.setConfig === "function") {
+        await this.$fd.setConfig(config);
+      }
+
+      this.$emit("update:modelValue", {
+        ...(isObject(this.modelValue) ? this.modelValue : {}),
+        config,
+      });
+    },
+    async persistPluginSettings() {
+      const candidate = this.buildConfigPayload();
+
+      try {
+        const result = await this.$fd.sendToBackend({
+          type: "savePluginConfig",
+          config: candidate,
+        });
+        if (result && result.ok === false) {
+          if (Array.isArray(result.errors) && result.errors.length > 0) {
+            this.pathValidationErrors = errorsByField(result.errors);
+            this.error = "Fix path override errors before saving.";
+            return false;
+          }
+          throw new Error(result.error || "Failed to save plugin settings");
+        }
+
+        await this.commitPluginConfig((result && result.config) || candidate);
+        this.applyPluginSettings((result && result.config) || candidate);
+        this.pathValidationErrors = {};
+        this.error = "";
+        return true;
+      } catch (error) {
+        this.error = error && error.message ? error.message : String(error);
+        return false;
+      }
+    },
+    async applyPathOverrides() {
+      this.savingPaths = true;
+      this.pathSaveMessage = "";
+      try {
+        const saved = await this.persistPluginSettings();
+        if (!saved) return;
+        this.pathSaveMessage = "Path overrides saved.";
+        await this.refresh();
+      } finally {
+        this.savingPaths = false;
+      }
+    },
+    updatePathOverride(key, value) {
+      if (this.pathValidationErrors[key]) {
+        const nextErrors = { ...this.pathValidationErrors };
+        delete nextErrors[key];
+        this.pathValidationErrors = nextErrors;
+      }
+      const overrides = { ...this.pathOverrides };
+      overrides[key] = typeof value === "string" ? value : "";
+      this.pluginSettings = {
+        ...this.pluginSettings,
+        pathOverrides: overrides,
+      };
+      this.pathSaveMessage = "";
+    },
     async refresh() {
       this.busy = true;
       this.error = "";
       try {
-        this.status = await this.$fd.sendToBackend({ type: "setupStatus" });
-        this.snapshot = await this.$fd.sendToBackend({ type: "snapshot" });
+        const [status, snapshot, pathFields] = await Promise.all([
+          this.$fd.sendToBackend({ type: "setupStatus" }),
+          this.$fd.sendToBackend({ type: "snapshot" }),
+          this.$fd.sendToBackend({ type: "pathDefaults" }),
+        ]);
+        this.status = status;
+        this.snapshot = snapshot;
+        this.pathFields = Array.isArray(pathFields) ? pathFields : [];
       } catch (error) {
         this.error = error && error.message ? error.message : String(error);
       } finally {
@@ -235,14 +451,36 @@ export default {
       }
     },
   },
-  mounted() {
+  async mounted() {
     setConfigPageClass(true);
-    this.refresh();
+    this.busy = true;
+    this.error = "";
+    try {
+      await this.loadInitialSettings();
+      await this.refresh();
+    } catch (error) {
+      this.error = error && error.message ? error.message : String(error);
+    } finally {
+      this.busy = false;
+    }
   },
   beforeUnmount() {
     setConfigPageClass(false);
   },
 };
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function errorsByField(errors) {
+  const byField = {};
+  for (const item of errors) {
+    if (!item || !item.key || !item.message || byField[item.key]) continue;
+    byField[item.key] = item.message;
+  }
+  return byField;
+}
 </script>
 
 <style scoped>
@@ -290,6 +528,10 @@ export default {
 
 .config-page :deep(textarea) {
   overflow-y: hidden !important;
+}
+
+.path-override-field :deep(input) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 :global(body.ai-dashboard-config-page) {
