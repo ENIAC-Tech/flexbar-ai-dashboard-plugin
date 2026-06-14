@@ -36,6 +36,16 @@ test("Claude bridge install adds hook handlers without replacing existing hooks"
   assert.match(settings.hooks.PreToolUse[1].hooks[0].command, /flexbar-ai-dashboard/);
 });
 
+test("Windows PowerShell recorder parses JSON without an unsupported -Depth parameter", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "flexbar-ai-"));
+  installClaudeBridge({ home: tempDir, platform: "win32", overwriteStatusLine: true });
+  const recorderPath = path.join(tempDir, ".flexbar-ai-dashboard", "claude-bridge-recorder.ps1");
+  const recorder = fs.readFileSync(recorderPath, "utf8");
+
+  assert.doesNotMatch(recorder, /ConvertFrom-Json\s+-Depth/);
+  assert.match(recorder, /ConvertFrom-Json/);
+});
+
 test("Claude bridge install does not overwrite a user statusLine by default", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "flexbar-ai-"));
   const settingsPath = path.join(tempDir, ".claude", "settings.json");
