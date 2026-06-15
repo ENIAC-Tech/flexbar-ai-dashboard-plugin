@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const {
   renderPlanUsageKey,
+  renderResetTimerKey,
   renderSessionKey,
   renderSkillKey,
   renderTokenUsageKey,
@@ -81,6 +82,45 @@ test("plan usage percent labels sit outside progress bars", () => {
   assert.ok(percent);
   const percentLeft = percent.x - fake.measureTextWidth(percent.text);
   assert.ok(percentLeft > bar.x + bar.width);
+});
+
+test("reset timer renders a depleting ring and compact remaining time per window", () => {
+  const fake = createFakeCanvasModule();
+  const now = 1_000_000_000_000;
+
+  renderResetTimerKey({
+    title: "Reset Timer",
+    items: [
+      { provider: "Codex", label: "5h", resetAtMs: now + 2 * 3600 * 1000, windowSeconds: 5 * 3600 },
+      { provider: "Codex", label: "Weekly", resetAtMs: now + 3 * 86400 * 1000, windowSeconds: 7 * 86400 },
+    ],
+  }, { width: 200, now, canvasModule: fake });
+
+  assert.ok(fake.texts.includes("2h"));
+  assert.ok(fake.texts.includes("3d"));
+  assert.ok(fake.texts.includes("5h"));
+  assert.ok(fake.texts.includes("Weekly"));
+  assert.ok(fake.fills.includes("#38bdf8"));
+});
+
+test("reset timer empties the ring once the window has passed its reset", () => {
+  const fake = createFakeCanvasModule();
+  const now = 1_000_000_000_000;
+
+  renderResetTimerKey({
+    items: [{ label: "5h", resetAtMs: now - 1000, windowSeconds: 5 * 3600 }],
+  }, { width: 200, now, canvasModule: fake });
+
+  assert.ok(fake.texts.includes("<1m"));
+  assert.ok(!fake.fills.includes("#38bdf8"));
+});
+
+test("reset timer localizes the unavailable state when no windows are known", () => {
+  const fake = createFakeCanvasModule();
+
+  renderResetTimerKey({ items: [] }, { width: 200, language: "zh-CN", canvasModule: fake });
+
+  assert.ok(fake.texts.includes("不可用"));
 });
 
 test("session key renderer does not draw layout guide borders", () => {

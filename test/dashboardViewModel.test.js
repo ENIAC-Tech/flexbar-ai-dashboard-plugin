@@ -197,6 +197,36 @@ test("dashboard plan usage exposes remaining percentages for 5h and weekly windo
   ]);
 });
 
+test("dashboard reset timer exposes reset timestamps and window lengths for 5h and weekly", () => {
+  const model = buildDashboardViewModel({
+    providers: {
+      codex: {
+        sessions: [],
+        quota: {
+          limits: [
+            { label: "primary", usedPercent: 8, resetAt: 1778696068 },
+            { label: "secondary", usedPercent: 35, resetAt: 1779189630 },
+          ],
+        },
+      },
+      claude: {
+        sessions: [],
+        quota: {
+          rateLimits: {
+            five_hour: { used_percentage: 60, resets_at: "2026-05-13T12:00:00Z" },
+          },
+        },
+      },
+    },
+  }, createDashboardState(), { sessionSlots: 0 });
+
+  assert.deepEqual(model.resetTimer.items, [
+    { provider: "Codex", label: "5h", resetAtMs: 1778696068000, windowSeconds: 18000 },
+    { provider: "Codex", label: "Weekly", resetAtMs: 1779189630000, windowSeconds: 604800 },
+    { provider: "Claude", label: "5h", resetAtMs: Date.parse("2026-05-13T12:00:00Z"), windowSeconds: 18000 },
+  ]);
+});
+
 test("dashboard localizes labels and activity text from the requested language", () => {
   const model = buildDashboardViewModel({
     providers: {

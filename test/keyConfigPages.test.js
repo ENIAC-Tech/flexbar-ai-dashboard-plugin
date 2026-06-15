@@ -87,6 +87,24 @@ test("plan usage config page migrates stale top-level data source from older sav
   assert.equal(next.dataSource, undefined);
 });
 
+test("reset timer config page writes data source into full key data model", () => {
+  const component = loadVueComponent("reset-timer.vue");
+  const { view, emitted } = mountConfigComponent(component, {
+    cid: "com.aspen.flexbar-ai-dashboard.reset-timer",
+    title: "Reset Timer",
+    style: {},
+    data: {
+      dataSource: "codex",
+    },
+  });
+
+  view.dataSource = "claude";
+
+  const next = latestModel(emitted);
+  assert.equal(next.data.dataSource, "claude");
+  assert.equal(next.dataSource, undefined);
+});
+
 test("session and plan config pages read data source from nested config models", () => {
   const session = mountConfigComponent(loadVueComponent("session.vue"), {
     data: {

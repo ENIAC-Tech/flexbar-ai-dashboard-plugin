@@ -6,6 +6,7 @@ const { applyUsageCache, captureUsageCache } = require("./collectors/usageCache"
 const { createDashboardState, buildDashboardViewModel, applySessionTitleMode } = require("./dashboard/viewModel");
 const {
   renderPlanUsageKey,
+  renderResetTimerKey,
   renderSessionKey,
   renderTokenUsageKey,
 } = require("./dashboard/render");
@@ -36,7 +37,8 @@ const SESSION_CID = "com.aspen.flexbar-ai-dashboard.session";
 const TOKEN_USAGE_CID = "com.aspen.flexbar-ai-dashboard.token-usage";
 const PLAN_USAGE_CID = "com.aspen.flexbar-ai-dashboard.plan-usage";
 const SKILL_CID = "com.aspen.flexbar-ai-dashboard.skill";
-const DASHBOARD_CIDS = new Set([SESSION_CID, TOKEN_USAGE_CID, PLAN_USAGE_CID, SKILL_CID]);
+const RESET_TIMER_CID = "com.aspen.flexbar-ai-dashboard.reset-timer";
+const DASHBOARD_CIDS = new Set([SESSION_CID, TOKEN_USAGE_CID, PLAN_USAGE_CID, RESET_TIMER_CID, SKILL_CID]);
 const SESSION_INTERVAL_MS = 2_000;
 const USAGE_INTERVAL_MS = 30_000;
 
@@ -215,7 +217,7 @@ async function handleKeyInteraction(payload) {
     return;
   }
 
-  if (key.cid === TOKEN_USAGE_CID || key.cid === PLAN_USAGE_CID) {
+  if (key.cid === TOKEN_USAGE_CID || key.cid === PLAN_USAGE_CID || key.cid === RESET_TIMER_CID) {
     usageCache = null;
     lastUsageAt = 0;
     refreshSnapshot();
@@ -346,6 +348,8 @@ function drawDashboardKeys() {
       );
     } else if (item.type === "plan") {
       drawImageKey(item.serialNumber, item.key, model.planUsage, renderPlanUsageKey, `${t(currentLanguage, "planUsageTitle")} ${model.planUsage.label}`);
+    } else if (item.type === "reset") {
+      drawImageKey(item.serialNumber, item.key, model.resetTimer, renderResetTimerKey, t(currentLanguage, "resetTimerTitle"));
     }
   }
 }
@@ -380,6 +384,7 @@ function dashboardKeyType(cid) {
   if (cid === SESSION_CID) return "session";
   if (cid === TOKEN_USAGE_CID) return "token";
   if (cid === PLAN_USAGE_CID) return "plan";
+  if (cid === RESET_TIMER_CID) return "reset";
   if (cid === SKILL_CID) return "skill";
   return "unknown";
 }

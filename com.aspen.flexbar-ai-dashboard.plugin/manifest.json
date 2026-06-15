@@ -98,6 +98,26 @@
               }
           },
           {
+              "title": "$ResetTimer.Title",
+              "tip": "$ResetTimer.Tip",
+              "cid": "com.aspen.flexbar-ai-dashboard.reset-timer",
+              "config": {
+                  "keyType": "default",
+                  "clickable": true,
+                  "platform": [
+                      "windows",
+                      "mac"
+                  ]
+              },
+              "style": {
+                  "icon": "mdi mdi-timer-sand",
+                  "width": 200
+              },
+              "data": {
+                  "dataSource": "codex"
+              }
+          },
+          {
               "title": "$Skill.Title",
               "tip": "$Skill.Tip",
               "cid": "com.aspen.flexbar-ai-dashboard.skill",
@@ -146,6 +166,10 @@
                 "Title": "Plan Usage",
                 "Tip": "Shows subscription usage windows"
             },
+            "ResetTimer": {
+                "Title": "Reset Timer",
+                "Tip": "Counts down to the 5h and weekly limit resets"
+            },
             "Skill": {
                 "Title": "AI Skill",
                 "Tip": "Pastes a selected Codex or Claude Code skill prompt"
@@ -164,6 +188,10 @@
             "PlanUsage": {
                 "Title": "\u5957\u9910\u7528\u91cf",
                 "Tip": "\u663e\u793a\u8ba2\u9605\u7528\u91cf\u7a97\u53e3"
+            },
+            "ResetTimer": {
+                "Title": "\u91cd\u7f6e\u5012\u8ba1\u65f6",
+                "Tip": "\u5012\u8ba1\u65f6\u663e\u793a 5 \u5c0f\u65f6\u4e0e\u6bcf\u5468\u9650\u989d\u7684\u91cd\u7f6e\u65f6\u95f4"
             },
             "Skill": {
                 "Title": "AI \u6280\u80fd",
