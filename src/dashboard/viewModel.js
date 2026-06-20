@@ -41,6 +41,7 @@ function buildDashboardViewModel(snapshot, state = createDashboardState(), optio
     sessions: sessionViews,
     totalTokens: buildTotalTokensView(snapshot, language),
     planUsage: buildPlanUsageView(snapshot, language),
+    resetTimer: buildResetTimerView(snapshot, language),
   };
 }
 
@@ -157,6 +158,48 @@ function quotaItems(provider, quota) {
       resetAt: limit.resetAt,
     };
   });
+}
+
+function buildResetTimerView(snapshot, language) {
+  const providers = snapshot && snapshot.providers || {};
+  const items = [
+    ...resetTimerItems("Codex", providers.codex && providers.codex.quota),
+    ...resetTimerItems("Claude", providers.claude && providers.claude.quota),
+  ];
+
+  return {
+    title: t(language, "resetTimerTitle"),
+    items,
+  };
+}
+
+function resetTimerItems(provider, quota) {
+  return dedupeQuotaLimits(extractQuotaLimits(quota))
+    .map((limit) => ({
+      provider,
+      label: humanQuotaLabel(limit.label),
+      resetAtMs: toEpochMs(limit.resetAt),
+      windowSeconds: windowSecondsForLabel(limit.label),
+    }))
+    .filter((item) => item.resetAtMs !== null && item.windowSeconds !== null);
+}
+
+function windowSecondsForLabel(label) {
+  if (label === "primary") return 5 * 60 * 60;
+  if (label === "secondary") return 7 * 24 * 60 * 60;
+  return null;
+}
+
+function toEpochMs(resetAt) {
+  if (typeof resetAt === "number" && Number.isFinite(resetAt)) {
+    // Reset timestamps arrive as Unix seconds (10-digit) or milliseconds (13-digit).
+    return resetAt < 1e12 ? Math.round(resetAt * 1000) : Math.round(resetAt);
+  }
+  if (typeof resetAt === "string" && resetAt.trim()) {
+    const parsed = Date.parse(resetAt);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
 }
 
 function extractQuotaLimits(quota) {

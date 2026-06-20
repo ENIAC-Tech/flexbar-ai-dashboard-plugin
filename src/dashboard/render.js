@@ -109,6 +109,56 @@ function renderPlanUsageKey(view, options = {}) {
   });
 }
 
+function renderResetTimerKey(view, options = {}) {
+  const language = normalizeLanguage(options.language);
+  const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  return renderKey(options, (ctx, width) => {
+    drawBackground(ctx, width);
+
+    const items = Array.isArray(view.items) ? view.items.slice(0, 2) : [];
+    if (items.length === 0) {
+      drawText(ctx, t(language, "unavailable"), width / 2, 36, {
+        font: fontSpec("bold", 22),
+        align: "center",
+        color: "#f4f4f5",
+        maxWidth: width - 20,
+      });
+      return;
+    }
+
+    const count = items.length;
+    const cy = 25;
+    const rOuter = 16;
+    const rInner = 11;
+    items.forEach((item, index) => {
+      const cx = Math.round((width * (index + 0.5)) / count);
+      const windowMs = Math.max(1, Number(item.windowSeconds) * 1000);
+      const remainingMs = Math.max(0, Number(item.resetAtMs) - now);
+      const fraction = Math.max(0, Math.min(1, remainingMs / windowMs));
+
+      // Full track, then a time arc that starts full at 12 o'clock and drains
+      // clockwise toward empty as the reset approaches.
+      fillRing(ctx, cx, cy, rOuter, rInner, -Math.PI / 2, Math.PI * 1.5, "#27272a");
+      if (fraction > 0) {
+        fillRing(ctx, cx, cy, rOuter, rInner, -Math.PI / 2, -Math.PI / 2 + fraction * Math.PI * 2, TIMER_COLOR);
+      }
+
+      drawText(ctx, formatResetRemaining(remainingMs), cx, cy + 4, {
+        font: fontSpec("bold", 13),
+        align: "center",
+        color: "#f4f4f5",
+        maxWidth: rInner * 2 + 6,
+      });
+      drawText(ctx, item.label, cx, 52, {
+        font: fontSpec("normal", 10),
+        align: "center",
+        color: "#d4d4d8",
+        maxWidth: Math.round(width / count) - 8,
+      });
+    });
+  });
+}
+
 function renderSessionKey(view, options = {}) {
   const language = normalizeLanguage(options.language);
   return renderKey(options, (ctx, width) => {
@@ -215,6 +265,28 @@ function quotaColor(remainingPercent) {
   return "#22c55e";
 }
 
+const TIMER_COLOR = "#38bdf8";
+
+function fillRing(ctx, cx, cy, rOuter, rInner, startAngle, endAngle, color) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, rOuter, startAngle, endAngle, false);
+  ctx.arc(cx, cy, rInner, endAngle, startAngle, true);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function formatResetRemaining(ms) {
+  const totalSeconds = Math.max(0, Math.round(Number(ms) / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  if (days > 0) return `${days}d`;
+  const hours = Math.floor(totalSeconds / 3600);
+  if (hours > 0) return `${hours}h`;
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes > 0) return `${minutes}m`;
+  return "<1m";
+}
+
 function tokenBarColor(intensity) {
   const value = Number(intensity);
   if (!Number.isFinite(value)) return "#71717a";
@@ -301,6 +373,7 @@ function drawRoundedRect(ctx, x, y, width, height, radius, color) {
 module.exports = {
   HEIGHT,
   renderPlanUsageKey,
+  renderResetTimerKey,
   renderSessionKey,
   renderSkillKey,
   renderTokenUsageKey,
