@@ -271,7 +271,10 @@ New-Item -ItemType Directory -Force -Path $eventDir | Out-Null
 
 $data = $null
 if (-not [string]::IsNullOrWhiteSpace($inputJson)) {
-  try { $data = $inputJson | ConvertFrom-Json -Depth 100 } catch { $data = $inputJson }
+  # NOTE: Windows PowerShell 5.1's ConvertFrom-Json has no -Depth parameter, so it
+  # must be omitted here or the deeply-nested statusline payload fails to parse and
+  # gets stored as a raw string (which breaks quota/rate-limit extraction downstream).
+  try { $data = $inputJson | ConvertFrom-Json } catch { $data = $inputJson }
 }
 
 $record = [ordered]@{
