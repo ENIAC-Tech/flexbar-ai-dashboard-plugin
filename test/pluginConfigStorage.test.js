@@ -52,6 +52,15 @@ test("mergePluginConfigs keeps disk overrides when host config is empty", () => 
   assert.equal(merged.pathOverrides.CODEX_HOME, "/disk/codex");
 });
 
+test("mergePluginConfigs keeps overwriteStatusLine when host config omits it", () => {
+  const merged = mergePluginConfigs(
+    { overwriteStatusLine: true },
+    { pathOverrides: { CODEX_HOME: "" } }
+  );
+
+  assert.equal(merged.overwriteStatusLine, true);
+});
+
 test("mergePluginConfigs applies non-empty host overrides on top of disk config", () => {
   const merged = mergePluginConfigs(
     { pathOverrides: { CODEX_HOME: "/disk/codex" } },
