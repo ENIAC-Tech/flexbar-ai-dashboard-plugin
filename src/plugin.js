@@ -28,6 +28,17 @@ const {
   uninstallClaudeBridge,
 } = require("./collectors/claudeBridgeInstall");
 const {
+  collectorOptionsFromConfig,
+  listPathDefaults,
+  normalizePluginConfig,
+} = require("./collectors/pathOverrides");
+const { validatePathOverrides } = require("./collectors/pathOverrideValidation");
+const {
+  loadPluginConfigState,
+  mergePluginConfigs,
+  writePluginConfigFile,
+} = require("./collectors/pluginConfigStorage");
+const {
   getSetupStatus,
   installAll,
   uninstallAll,
@@ -52,9 +63,17 @@ let snapshotInFlight = false;
 let usageCache = null;
 let lastUsageAt = 0;
 let currentLanguage = DEFAULT_LANGUAGE;
+const initialPluginConfigState = loadPluginConfigState(plugin.directory);
+let pluginConfig = initialPluginConfigState.config;
+let hostPluginConfigSynced = false;
+
+if (initialPluginConfigState.warning) {
+  logger.warn(initialPluginConfigState.warning);
+}
 
 plugin.on("ui.message", async (payload) => {
   updateHostLanguage(payload);
+  await ensureHostPluginConfigSynced();
 
   if (payload && payload.type === "language") {
     return { language: currentLanguage };
@@ -65,41 +84,62 @@ plugin.on("ui.message", async (payload) => {
   }
 
   if (payload && payload.type === "skills") {
-    return listAiSkills({ source: payload.dataSource || payload.source });
+    return listAiSkills({
+      source: payload.dataSource || payload.source,
+      ...collectorOptionsFromConfig(pluginConfig),
+    });
   }
 
   if (payload && payload.type === "claudeBridgeStatus") {
-    return getClaudeBridgeStatus();
+    return getClaudeBridgeStatus(collectorOptionsFromConfig(pluginConfig));
+  }
+
+  if (payload && payload.type === "pathDefaults") {
+    return listPathDefaults();
+  }
+
+  if (payload && payload.type === "getPluginConfig") {
+    return pluginConfig;
+  }
+
+  if (payload && payload.type === "savePluginConfig") {
+    return savePluginConfig(payload.config);
   }
 
   if (payload && payload.type === "setupStatus") {
-    return getSetupStatus();
+    return getSetupStatus(collectorOptionsFromConfig(pluginConfig));
   }
 
   if (payload && payload.type === "installAll") {
     const result = installAll({
-      overwriteStatusLine: Boolean(payload.overwriteStatusLine),
+      ...collectorOptionsFromConfig(pluginConfig),
+      overwriteStatusLine: Boolean(
+        payload.overwriteStatusLine ?? pluginConfig.overwriteStatusLine
+      ),
     });
     await refreshSnapshot();
     return result;
   }
 
   if (payload && payload.type === "uninstallAll") {
-    const result = uninstallAll();
+    const result = uninstallAll(collectorOptionsFromConfig(pluginConfig));
     await refreshSnapshot();
     return result;
   }
 
   if (payload && payload.type === "installClaudeBridge") {
     const result = installClaudeBridge({
-      overwriteStatusLine: Boolean(payload.overwriteStatusLine),
+      ...collectorOptionsFromConfig(pluginConfig),
+      overwriteStatusLine: Boolean(
+        payload.overwriteStatusLine ?? pluginConfig.overwriteStatusLine
+      ),
     });
     await refreshSnapshot();
     return result;
   }
 
   if (payload && payload.type === "uninstallClaudeBridge") {
-    const result = uninstallClaudeBridge();
+    const result = uninstallClaudeBridge(collectorOptionsFromConfig(pluginConfig));
     await refreshSnapshot();
     return result;
   }
@@ -112,9 +152,10 @@ plugin.on("device.status", (devices) => {
   logger.info("Device status changed:", devices);
 });
 
-plugin.on("plugin.alive", (payload) => {
+plugin.on("plugin.alive", async (payload) => {
   logger.info("Plugin alive:", payload);
   updateHostLanguage(payload);
+  await ensureHostPluginConfigSynced();
   handleKeysLoaded(payload);
 });
 
@@ -145,8 +186,54 @@ plugin.on("device.userData", async (payload) => {
 plugin.on("plugin.config.updated", (payload) => {
   logger.info("Plugin config updated:", payload);
   updateHostLanguage(payload);
+  pluginConfig = mergePluginConfigs(pluginConfig, payload && (payload.config ?? payload));
+  writePluginConfigFile(plugin.directory, pluginConfig);
+  if (dashboardKeys.size > 0) {
+    refreshSnapshot();
+    return;
+  }
   drawDashboardKeys();
 });
+
+async function ensureHostPluginConfigSynced() {
+  if (hostPluginConfigSynced || typeof plugin.getConfig !== "function") return;
+  hostPluginConfigSynced = true;
+
+  try {
+    const config = await plugin.getConfig();
+    pluginConfig = mergePluginConfigs(pluginConfig, config);
+    writePluginConfigFile(plugin.directory, pluginConfig);
+  } catch (error) {
+    hostPluginConfigSynced = false;
+    logger.warn("Failed to sync plugin config from host:", error);
+  }
+}
+
+async function savePluginConfig(config) {
+  const candidate = normalizePluginConfig(config);
+  const validation = validatePathOverrides(candidate);
+  if (!validation.ok) {
+    return { ok: false, errors: validation.errors };
+  }
+
+  pluginConfig = candidate;
+  writePluginConfigFile(plugin.directory, pluginConfig);
+
+  if (typeof plugin.setConfig === "function") {
+    try {
+      await plugin.setConfig(pluginConfig);
+    } catch (error) {
+      logger.error("Failed to save plugin config:", error);
+      return { ok: false, error: error && error.message ? error.message : String(error) };
+    }
+  }
+
+  if (dashboardKeys.size > 0) {
+    await refreshSnapshot();
+  }
+
+  return { ok: true, config: pluginConfig };
+}
 
 function updateHostLanguage(payload) {
   const language = languageFromPayload(payload);
@@ -258,13 +345,16 @@ async function refreshSnapshot() {
   try {
     const now = Date.now();
     const includeUsage = !usageCache || now - lastUsageAt >= USAGE_INTERVAL_MS;
+    const collectorOptions = collectorOptionsFromConfig(pluginConfig);
     latestSnapshot = await collectAiSnapshot({
       codex: {
+        ...collectorOptions,
         appServerTimeoutMs: 2_500,
         includeUsage,
         includeQuota: includeUsage,
       },
       claude: {
+        ...collectorOptions,
         maxFiles: 30,
         maxLinesPerFile: 200,
         includeUsage,
